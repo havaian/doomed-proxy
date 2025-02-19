@@ -2,22 +2,22 @@ module.exports = {
     apps: [{
         name: 'openai-proxy',
         script: 'index.js',
-        instances: 'max',            // Automatically detect optimal number based on CPU cores
-        exec_mode: 'cluster',        // Run in cluster mode for load balancing
-        watch: false,               // Disable file watching in production
-        max_memory_restart: '10G',  // Restart if memory exceeds 10GB (leaving 2GB buffer)
+        instances: 4,               // Match vCPU count
+        exec_mode: 'cluster',       // Run in cluster mode for load balancing
+        watch: false,              // Disable file watching in production
+        max_memory_restart: '6G',  // Restart if memory exceeds 6GB (leaving 2GB buffer)
 
         // Node.js specific settings
         node_args: [
-            '--max-old-space-size=10240',  // 10GB max heap (matching max_memory_restart)
-            '--optimize-for-size',         // Optimize memory over speed
+            '--max-old-space-size=6144',  // 6GB max heap
+            '--optimize-for-size',        // Optimize memory over speed
         ],
 
         // Environment variables
         env: {
             NODE_ENV: 'production',
             PORT: 8000,
-            UV_THREADPOOL_SIZE: 6      // Matching your vCPU count
+            UV_THREADPOOL_SIZE: 4     // Match vCPU count
         },
 
         // Error handling

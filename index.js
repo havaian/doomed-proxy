@@ -8,13 +8,13 @@ require('dotenv').config();
 
 const app = express();
 
-// Optimize memory usage for 12GB RAM
-const MEMORY_FOR_BUFFERS = Math.floor(10 * 1024 * 1024 * 1024 * 0.2); // 20% of 10GB for buffers
+// Optimize memory usage for 8GB RAM
+const MEMORY_FOR_BUFFERS = Math.floor(8 * 1024 * 1024 * 1024 * 0.2); // 20% of 8GB for buffers
 
 // Configure multer with NVMe optimization
 const upload = multer({
     limits: {
-        fileSize: MEMORY_FOR_BUFFERS / 10, // Max file size
+        fileSize: Math.min(MEMORY_FOR_BUFFERS / 10, 10 * 1024 * 1024), // Max 10MB or memory limit
     },
     storage: multer.memoryStorage() // Use memory storage for NVMe speed advantage
 });
@@ -31,8 +31,8 @@ const openaiClient = axios.create({
     },
     httpAgent: new require('http').Agent({
         keepAlive: true,
-        maxSockets: 2000,        // Increased for 32TB traffic capacity
-        maxFreeSockets: 200,
+        maxSockets: 1000,        // Adjusted for 20TB traffic capacity
+        maxFreeSockets: 100,
         timeout: 60000,
         keepAliveMsecs: 1000
     })
@@ -125,8 +125,8 @@ app.post('/api/transcribe', upload.single('audio'), async (req, res) => {
     }
 });
 
-// Optimize for 6 vCPUs
+// Optimize for 4 vCPUs
 app.listen(8000, '0.0.0.0', () => {
-    process.env.UV_THREADPOOL_SIZE = '6';  // Match vCPU count
+    process.env.UV_THREADPOOL_SIZE = '4';  // Match vCPU count
     console.log(`Server running on port ${8000}`);
 });
