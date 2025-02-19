@@ -1,7 +1,7 @@
 module.exports = {
     apps: [{
         name: 'openai-proxy',
-        script: 'app.js',
+        script: 'index.js',
         instances: 'max',            // Automatically detect optimal number based on CPU cores
         exec_mode: 'cluster',        // Run in cluster mode for load balancing
         watch: false,               // Disable file watching in production
