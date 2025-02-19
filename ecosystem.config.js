@@ -16,7 +16,7 @@ module.exports = {
         // Environment variables
         env: {
             NODE_ENV: 'production',
-            PORT: 8000,
+            PORT: 13029,
             UV_THREADPOOL_SIZE: 4     // Match vCPU count
         },
 
