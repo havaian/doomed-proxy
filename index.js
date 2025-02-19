@@ -8,13 +8,13 @@ require('dotenv').config();
 
 const app = express();
 
-// Optimize memory usage for 8GB RAM
-const MEMORY_FOR_BUFFERS = Math.floor(8 * 1024 * 1024 * 1024 * 0.2); // 20% of 8GB for buffers
+// Optimize memory usage for 12GB RAM
+const MEMORY_FOR_BUFFERS = Math.floor(10 * 1024 * 1024 * 1024 * 0.2); // 20% of 10GB for buffers
 
 // Configure multer with NVMe optimization
 const upload = multer({
     limits: {
-        fileSize: Math.min(MEMORY_FOR_BUFFERS / 10, 10 * 1024 * 1024), // Max 10MB or memory limit
+        fileSize: MEMORY_FOR_BUFFERS / 10, // Max file size
     },
     storage: multer.memoryStorage() // Use memory storage for NVMe speed advantage
 });
@@ -31,8 +31,8 @@ const openaiClient = axios.create({
     },
     httpAgent: new require('http').Agent({
         keepAlive: true,
-        maxSockets: 1000,        // Adjusted for 20TB traffic capacity
-        maxFreeSockets: 100,
+        maxSockets: 2000,        // Increased for 32TB traffic capacity
+        maxFreeSockets: 200,
         timeout: 60000,
         keepAliveMsecs: 1000
     })
@@ -74,15 +74,13 @@ app.post('/api/chat', async (req, res) => {
         }
 
         const response = await openaiClient.post('/chat/completions', {
-            model: 'gpt-4o-mini',
+            model: req.body.model,
             messages: req.body.messages,
             temperature: req.body.temperature || 0.5
         });
 
-        if (response.data.choices && response.data.choices.length > 0) {
-            const message = response.data.choices[0].message;
-            message.content = message.content.trim();
-            res.json(message);
+        if (response.data) {
+            res.json(response.data);
         } else {
             res.status(400).json({ error: 'No completion generated' });
         }
@@ -102,21 +100,29 @@ app.post('/api/transcribe', upload.single('audio'), async (req, res) => {
         }
 
         const formData = new FormData();
-        formData.append('file', new Blob([req.file.buffer], { type: 'audio/wav' }), 'audio.wav');
+        
+        // Create a Buffer from the file data
+        formData.append('file', req.file.buffer, {
+            filename: 'audio.wav',
+            contentType: 'audio/wav'
+        });
         formData.append('model', 'whisper-1');
+        
         if (req.body.language) {
             formData.append('language', req.body.language);
         }
 
         const response = await openaiClient.post('/audio/transcriptions', formData, {
             headers: {
-                ...openaiClient.defaults.headers,
-                'Content-Type': 'multipart/form-data'
+                ...formData.getHeaders(),  // Use FormData's headers instead of default ones
+                'Authorization': `Bearer ${process.env.OPENAI_API_KEY}`
             },
-            timeout: 60000  // 60 seconds timeout for audio processing
+            timeout: 60000,  // 60 seconds timeout for audio processing
+            maxContentLength: Infinity,
+            maxBodyLength: Infinity
         });
 
-        res.json({ text: response.data.text });
+        res.json(response.data);
     } catch (error) {
         console.error('Transcription error:', error.message);
         res.status(error.response?.status || 500).json({
