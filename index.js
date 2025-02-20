@@ -3,11 +3,7 @@ const compression = require('compression');
 const cron = require('node-cron');
 const { v4: uuidv4 } = require('uuid');
 const morgan = require('morgan');
-require('dotenv').config();
-
-// Import routes
-const chatRouter = require('./routes/chat');
-const transcribeRouter = require('./routes/transcribe');
+require('dotenv').config();;
 
 // Import middleware
 const captureResponseBody = require('./middleware/capture');
@@ -20,6 +16,8 @@ const logger = require('./config/logger');
 const monitorDiskSpace = require('./utils/diskMonitor');
 
 const app = express();
+
+app.set('trust proxy', 1);
 
 // Request ID middleware
 app.use((req, res, next) => {
@@ -57,9 +55,15 @@ if (process.env.NODE_ENV !== 'production') {
     }));
 }
 
+// Import routes
+const chatRouter = require('./routes/chat');
+const transcribeRouter = require('./routes/transcribe');
+const healthRouter = require('./routes/health');
+
 // Routes
 app.use('/api', chatRouter);
 app.use('/api', transcribeRouter);
+app.use('/api', healthRouter);
 
 // Schedule disk space check
 cron.schedule('0 * * * *', monitorDiskSpace);

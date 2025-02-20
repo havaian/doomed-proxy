@@ -4,7 +4,6 @@ const multer = require('multer');
 const FormData = require('form-data');
 const handleUpload = require('../middleware/upload');
 const openaiClient = require('../config/openai');
-const { normalizeKeys } = require('../utils/normalize');
 
 router.post('/transcribe', (req, res) => {
     handleUpload(req, res, async (err) => {
@@ -28,9 +27,6 @@ router.post('/transcribe', (req, res) => {
                 return res.status(400).json({ error: '❌ No audio file provided' });
             }
 
-            // Normalize the request body for any additional fields
-            const normalizedBody = normalizeKeys(req.body);
-
             const formData = new FormData();
             
             formData.append('file', req.file.buffer, {
@@ -39,8 +35,8 @@ router.post('/transcribe', (req, res) => {
             });
             formData.append('model', 'whisper-1');
             
-            if (normalizedBody.language) {
-                formData.append('language', normalizedBody.language);
+            if (req.body.language) {
+                formData.append('language', req.body.language);
             }
 
             const response = await openaiClient.post('/audio/transcriptions', formData, {

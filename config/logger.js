@@ -11,58 +11,31 @@ if (!fs.existsSync(logsDir)) {
 
 // Log rotation settings
 const rotatingLogStream = rfs.createStream('access.log', {
-    interval: '1d',
+    interval: '1d',    // Rotate daily
     path: logsDir,
-    size: '100M',
-    compress: 'gzip',
+    compress: (source, dest) => {
+        // Custom compression to ensure single archive
+        const gzip = require('zlib').createGzip();
+        const sourceStream = fs.createReadStream(source);
+        const destStream = fs.createWriteStream(dest);
+        
+        return new Promise((resolve, reject) => {
+            sourceStream
+                .pipe(gzip)
+                .pipe(destStream)
+                .on('finish', () => {
+                    fs.unlink(source, resolve);
+                })
+                .on('error', reject);
+        });
+    },
     maxFiles: 100,
     maxSize: '5G'
 });
 
 // Custom tokens
-morgan.token('req-body', (req) => {
-    if (req.body && Object.keys(req.body).length > 0) {
-        const sanitizedBody = { ...req.body };
-        if (sanitizedBody.messages) {
-            sanitizedBody.messages = sanitizedBody.messages.map(msg => ({
-                role: msg.role,
-                content: msg.content,
-            }));
-        }
-        delete sanitizedBody.api_key;
-        delete sanitizedBody.apiKey;
-        delete sanitizedBody.authorization;
-        delete sanitizedBody.password;
-        delete sanitizedBody.token;
-        return JSON.stringify(sanitizedBody);
-    }
-    return '-';
-});
-
-morgan.token('res-body', (req, res) => {
-    const rawBody = res._responseBody;
-    if (rawBody) {
-        try {
-            const body = JSON.parse(rawBody);
-            if (body.choices) {
-                body.choices = body.choices.map(choice => ({
-                    ...choice,
-                    message: {
-                        role: choice.message?.role,
-                        content: choice.message?.content,
-                        ...(choice.message?.refusal && { refusal: choice.message.refusal })
-                    }
-                }));
-            }
-            delete body.authorization;
-            delete body.token;
-            return JSON.stringify(body);
-        } catch (e) {
-            return rawBody.length > 1000 ? `${rawBody.substring(0, 1000)}...` : rawBody;
-        }
-    }
-    return '-';
-});
+morgan.token('req-body', req => JSON.stringify(req.body));
+morgan.token('res-body', (req, res) => res._responseBody || '-');
 
 morgan.token('file-info', (req) => {
     if (req.file) {

@@ -1,49 +1,22 @@
 const express = require('express');
 const router = express.Router();
 const openaiClient = require('../config/openai');
-const { normalizeKeys } = require('../utils/normalize');
 
 router.post('/chat', async (req, res) => {
     try {
-        // Normalize the request body
-        const normalizedBody = normalizeKeys(req.body);
+        const messages = (req.body.Messages || req.body.messages || []).map(msg => ({
+            role: msg.Role || msg.role,
+            content: msg.Content || msg.content
+        }));
 
-        // Validate request body
-        if (!normalizedBody.messages || !Array.isArray(normalizedBody.messages)) {
-            console.error('❌ Invalid request structure:', JSON.stringify(normalizedBody));
-            return res.status(400).json({ error: '❌ Invalid messages format. Expected an array of messages.' });
-        }
+        const body = {
+            model: req.body.Model?.toLowerCase() || req.body.model,
+            messages: messages,
+            temperature: req.body.Temperature || req.body.temperature
+        };
 
-        // Validate message format and log problematic messages
-        const invalidMessage = normalizedBody.messages.find(msg => {
-            const isInvalid = !msg.role || !msg.content || 
-                typeof msg.role !== 'string' || 
-                typeof msg.content !== 'string';
-            
-            if (isInvalid) {
-                console.error('❌ Invalid message format:', JSON.stringify(msg));
-            }
-            return isInvalid;
-        });
+        const response = await openaiClient.post('/chat/completions', body);
         
-        if (invalidMessage) {
-            return res.status(400).json({ 
-                error: '❌ Invalid message format. Each message must have "role" and "content" as strings.' 
-            });
-        }
-
-        // Validate model parameter
-        if (!normalizedBody.model) {
-            console.error('❌ Missing model parameter');
-            return res.status(400).json({ error: '❌ Model parameter is required' });
-        }
-
-        const response = await openaiClient.post('/chat/completions', {
-            model: normalizedBody.model,
-            messages: normalizedBody.messages,
-            temperature: normalizedBody.temperature || 0.5
-        });
-
         if (response.data) {
             res.json(response.data);
         } else {
@@ -54,11 +27,7 @@ router.post('/chat', async (req, res) => {
         console.error('❌ Chat completion error:', {
             message: error.message,
             status: error.response?.status,
-            data: error.response?.data,
-            request: {
-                model: req.body.model,
-                messageCount: req.body.messages?.length
-            }
+            data: error.response?.data
         });
         
         res.status(error.response?.status || 500).json({
