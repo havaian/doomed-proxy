@@ -1,9 +1,9 @@
 const axios = require('axios');
-const axiosRetry = require('axios-retry');
 
+// Create the OpenAI client
 const openaiClient = axios.create({
     baseURL: 'https://api.openai.com/v1',
-    timeout: 15000, // 15 seconds
+    timeout: 15000, // Changed from 30000 to 15000 (15 seconds)
     headers: {
         'Authorization': `Bearer ${process.env.OPENAI_API_KEY}`,
         'Content-Type': 'application/json',
@@ -19,30 +19,63 @@ const openaiClient = axios.create({
     })
 });
 
-// Configure retry behavior
-axiosRetry(openaiClient, {
-    retries: 1, // Number of retry attempts
-    retryDelay: axiosRetry.exponentialDelay, // Exponential backoff
-    retryCondition: (error) => {
-        // Retry on timeout errors, network errors, and 5xx responses
-        return (
-            error.code === 'ECONNABORTED' || // Timeout
-            axiosRetry.isNetworkError(error) || // Network errors
-            (error.response && error.response.status >= 500) // Server errors
-        );
-    },
-    shouldResetTimeout: true, // Reset timeout between retries
-});
-
-// Log retry attempts
-openaiClient.interceptors.response.use(undefined, async (error) => {
-    const config = error.config;
+// Add response interceptor for retry logic
+openaiClient.interceptors.response.use(
+    // Success handler - just return the response
+    (response) => response, 
     
-    if (config && config['axios-retry'] && config['axios-retry'].retryCount > 0) {
-        console.error(`Retry attempt ${config['axios-retry'].retryCount} for request to ${config.url}`);
+    // Error handler with retry logic
+    (err) => {
+        const { config, message } = err;
+        
+        // If no config or retry not set, reject immediately
+        if (!config || config.retry === undefined) {
+            // Set default retry values for all requests
+            if (config) {
+                config.retry = 3;
+                config.retryDelay = 2000;
+            } else {
+                return Promise.reject(err);
+            }
+        }
+        
+        // Only retry on timeout or network errors
+        if (!(message.includes("timeout") || message.includes("Network Error"))) {
+            return Promise.reject(err);
+        }
+        
+        // If we have retries left, decrement and try again
+        if (config.retry > 0) {
+            config.retry -= 1;
+            
+            console.error(`❌ Request failed (${message}). Retrying (${3 - config.retry}/3): ${config.url}`);
+            
+            // Create a delay using Promise
+            const delayRetryRequest = new Promise((resolve) => {
+                setTimeout(() => {
+                    resolve();
+                }, config.retryDelay || 1000);
+            });
+            
+            // Return the promise chain with delay then retry
+            return delayRetryRequest.then(() => {
+                return openaiClient(config);
+            });
+        }
+        
+        // No retries left, reject with the error
+        return Promise.reject(err);
     }
-    
-    return Promise.reject(error);
+);
+
+// Add request interceptor to set default retry parameters
+openaiClient.interceptors.request.use((config) => {
+    // Set default retry configuration if not already set
+    if (config.retry === undefined) {
+        config.retry = 1;
+        config.retryDelay = 2000;
+    }
+    return config;
 });
 
 module.exports = openaiClient;
