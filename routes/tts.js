@@ -15,6 +15,7 @@ router.post('/tts', async (req, res) => {
     try {
         const {
             text,
+            modelId = 'eleven_flash_v2_5', // Default model ID if none provided
             voiceId = 'JBFqnCBsd6RMkjVDRZzb', // Default voice ID if none provided
         } = req.body;
 
@@ -25,7 +26,7 @@ router.post('/tts', async (req, res) => {
         // Match Unity implementation's parameters
         const body = {
             text,
-            model_id: 'eleven_flash_v2_5',
+            modelId,
             voice_settings: {
                 stability: 0.5,
                 similarity_boost: 0.8
@@ -54,7 +55,7 @@ router.post('/tts', async (req, res) => {
         // Set headers for binary audio data
         res.setHeader('Content-Type', 'application/octet-stream');
         res.setHeader('Content-Length', response.data.length);
-        
+
         // Optional: Add custom headers that might be useful for Unity
         res.setHeader('X-Audio-Sample-Rate', '24000');
         res.setHeader('X-Audio-Format', 'pcm');
