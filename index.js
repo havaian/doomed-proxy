@@ -59,11 +59,13 @@ if (process.env.NODE_ENV !== 'production') {
 const chatRouter = require('./routes/chat');
 const transcribeRouter = require('./routes/transcribe');
 const healthRouter = require('./routes/health');
+const ttsRouter = require('./routes/tts');
 
 // Routes
 app.use('/api', chatRouter);
 app.use('/api', transcribeRouter);
 app.use('/api', healthRouter);
+app.use('/api', ttsRouter);
 
 // Schedule disk space check
 cron.schedule('0 * * * *', monitorDiskSpace);
