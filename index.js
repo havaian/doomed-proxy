@@ -46,12 +46,15 @@ app.use(express.json({
 
 // Logging setup
 app.use(captureResponseBody);
-app.use(morgan(logger.format, { stream: logger.stream }));
+app.use(morgan(logger.format, { 
+    stream: logger.stream,
+    skip: logger.skip
+}));
 
 // Development console logging
 if (process.env.NODE_ENV !== 'production') {
     app.use(morgan(logger.format, {
-        skip: (req) => req.url === '/health'
+        skip: (req) => req.url === '/health' || logger.skip(req, req.res)
     }));
 }
 
@@ -73,6 +76,6 @@ cron.schedule('0 * * * *', monitorDiskSpace);
 // Start server
 const PORT = process.env.PORT || 13029;
 app.listen(PORT, '0.0.0.0', () => {
-    process.env.UV_THREADPOOL_SIZE = '4';  // Match vCPU count
+    process.env.UV_THREADPOOL_SIZE = '4';
     console.log(`✅ Server running on port ${PORT}`);
 });

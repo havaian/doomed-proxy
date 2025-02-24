@@ -34,8 +34,39 @@ const rotatingLogStream = rfs.createStream('access.log', {
 });
 
 // Custom tokens
-morgan.token('req-body', req => JSON.stringify(req.body));
-morgan.token('res-body', (req, res) => res._responseBody || '-');
+morgan.token('req-body', req => {
+    // Don't log file uploads or large binary data
+    if (req.is('multipart/form-data') || req.is('application/octet-stream')) {
+        return '[FILE UPLOAD - NOT LOGGED]';
+    }
+    
+    try {
+        return JSON.stringify(req.body);
+    } catch (err) {
+        return '[CANNOT STRINGIFY BODY]';
+    }
+});
+
+morgan.token('res-body', (req, res) => {
+    // Skip binary responses and TTS responses
+    const contentType = res.getHeader ? res.getHeader('content-type') : res._headers?.['content-type'];
+    
+    if (contentType && (
+        contentType.includes('octet-stream') || 
+        contentType.includes('audio') ||
+        contentType.includes('video') ||
+        contentType.includes('image')
+    )) {
+        return '[BINARY DATA - NOT LOGGED]';
+    }
+    
+    // Check if it's a TTS endpoint
+    if (req.path && req.path.includes('/tts')) {
+        return '[TTS AUDIO DATA - NOT LOGGED]';
+    }
+    
+    return res._responseBody || '-';
+});
 
 morgan.token('file-info', (req) => {
     if (req.file) {
@@ -65,7 +96,24 @@ const logFormat = [
     'File: :file-info'
 ].join(' | ');
 
+// Skip function to completely avoid logging certain requests
+const skipBinaryResponses = (req, res) => {
+    // Option 1: Skip logging TTS routes completely
+    if (req.path && req.path.includes('/tts')) {
+        return true; // Skip logging
+    }
+    
+    // Option 2: Skip based on response content type
+    const contentType = res.getHeader ? res.getHeader('content-type') : res._headers?.['content-type'];
+    if (contentType && contentType.includes('octet-stream')) {
+        return true;
+    }
+    
+    return false;
+};
+
 module.exports = {
     stream: rotatingLogStream,
-    format: logFormat
+    format: logFormat,
+    skip: skipBinaryResponses
 };

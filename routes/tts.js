@@ -26,7 +26,7 @@ router.post('/tts', async (req, res) => {
         // Match Unity implementation's parameters
         const body = {
             text,
-            modelId,
+            model_id: modelId,
             voice_settings: {
                 stability: 0.5,
                 similarity_boost: 0.8
