@@ -64,18 +64,27 @@ router.post('/tts', async (req, res) => {
         res.send(response.data);
 
     } catch (error) {
+        console.error('❌ Unity TTS error:', {
+            message: error.message,
+            status: error.response?.status
+        });
+    
         if (error.response?.data instanceof Buffer) {
             console.error('Error response as text:', error.response.data.toString('utf8'));
         }
-
-        console.error('❌ Unity TTS error:', {
-            message: error.message,
-            status: error.response?.status,
-            data: error.response?.data
-        });
-
+    
+        let errorMessage = "ElevenLabs API error";
+        
+        // More specific error messages based on status code
+        if (error.response?.status === 403) {
+            errorMessage = "Authorization error with ElevenLabs API (403 Forbidden)";
+        } else if (error.response?.status === 429) {
+            errorMessage = "Rate limit exceeded with ElevenLabs API";
+        }
+    
         res.status(error.response?.status || 500).json({
-            error: error.response?.data?.error?.message || error.message
+            error: errorMessage,
+            details: error.message
         });
     }
 });
