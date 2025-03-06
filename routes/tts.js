@@ -64,6 +64,10 @@ router.post('/tts', async (req, res) => {
         res.send(response.data);
 
     } catch (error) {
+        if (error.response?.data instanceof Buffer) {
+            console.error('Error response as text:', error.response.data.toString('utf8'));
+        }
+
         console.error('❌ Unity TTS error:', {
             message: error.message,
             status: error.response?.status,
