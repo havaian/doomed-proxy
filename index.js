@@ -61,12 +61,14 @@ if (process.env.NODE_ENV !== 'production') {
 // Import routes
 const chatRouter = require('./routes/chat');
 const transcribeRouter = require('./routes/transcribe');
+const visionRouter = require('./routes/vision');
 const healthRouter = require('./routes/health');
 const ttsRouter = require('./routes/tts');
 
 // Routes
 app.use('/api', chatRouter);
 app.use('/api', transcribeRouter);
+app.use('/api', visionRouter);
 app.use('/api', healthRouter);
 app.use('/api', ttsRouter);
 
