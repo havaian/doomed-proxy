@@ -1,5 +1,7 @@
 // config/monitoring.js
 const EventEmitter = require('events');
+
+// Create metrics object first
 const metrics = {
     startTime: Date.now(),
     endpoints: {
@@ -11,6 +13,20 @@ const metrics = {
             status: 'unknown'
         },
         '/api/transcribe': {
+            requests: 0,
+            errors: 0,
+            totalLatency: 0,
+            lastCheck: null,
+            status: 'unknown'
+        },
+        '/api/vision': {
+            requests: 0,
+            errors: 0,
+            totalLatency: 0,
+            lastCheck: null,
+            status: 'unknown'
+        },
+        '/api/tts': {
             requests: 0,
             errors: 0,
             totalLatency: 0,

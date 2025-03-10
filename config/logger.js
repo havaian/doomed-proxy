@@ -2,6 +2,7 @@ const morgan = require('morgan');
 const rfs = require('rotating-file-stream');
 const path = require('path');
 const fs = require('fs');
+const zlib = require('zlib');
 
 // Set up logging directory
 const logsDir = path.join(__dirname, '..', 'logs');
@@ -9,26 +10,18 @@ if (!fs.existsSync(logsDir)) {
     fs.mkdirSync(logsDir);
 }
 
-// Log rotation settings
+// Create initial access.log to prevent ENOENT errors
+const accessLogPath = path.join(logsDir, 'access.log');
+if (!fs.existsSync(accessLogPath)) {
+    fs.writeFileSync(accessLogPath, '');
+}
+
+// Log rotation settings - FIXED compression function
 const rotatingLogStream = rfs.createStream('access.log', {
     interval: '1d',    // Rotate daily
     path: logsDir,
-    compress: (source, dest) => {
-        // Custom compression to ensure single archive
-        const gzip = require('zlib').createGzip();
-        const sourceStream = fs.createReadStream(source);
-        const destStream = fs.createWriteStream(dest);
-        
-        return new Promise((resolve, reject) => {
-            sourceStream
-                .pipe(gzip)
-                .pipe(destStream)
-                .on('finish', () => {
-                    fs.unlink(source, resolve);
-                })
-                .on('error', reject);
-        });
-    },
+    size: '100M',      // Also rotate if size exceeds 100MB
+    compress: 'gzip',  // Use built-in gzip compression instead of custom
     maxFiles: 100,
     maxSize: '5G'
 });
