@@ -21,7 +21,7 @@ const rotatingLogStream = rfs.createStream('access.log', {
     interval: '1d',    // Rotate daily
     path: logsDir,
     size: '100M',      // Also rotate if size exceeds 100MB
-    compress: 'gzip',  // Use built-in gzip compression instead of custom
+    compress: (source, dest) => `gzip -c ${source} > ${dest}`,  // Use built-in gzip compression instead of custom
     maxFiles: 100,
     maxSize: '5G'
 });
