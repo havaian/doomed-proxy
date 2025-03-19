@@ -16,12 +16,12 @@ if (!fs.existsSync(accessLogPath)) {
     fs.writeFileSync(accessLogPath, '');
 }
 
-// Log rotation settings - FIXED compression function
+// Log rotation settings
 const rotatingLogStream = rfs.createStream('access.log', {
-    interval: '1d',    // Rotate daily
+    interval: '30d',    // Rotate daily
     path: logsDir,
     size: '100M',      // Also rotate if size exceeds 100MB
-    compress: (source, dest) => `gzip -c ${source} > ${dest}`,  // Use built-in gzip compression instead of custom
+    compress: 'gzip',  // Use built-in gzip compression
     maxFiles: 100,
     maxSize: '5G'
 });
@@ -89,17 +89,35 @@ const logFormat = [
     'File: :file-info'
 ].join(' | ');
 
-// Skip function to completely avoid logging certain requests
-const skipBinaryResponses = (req, res) => {
-    // Option 1: Skip logging TTS routes completely
-    if (req.path && req.path.includes('/tts')) {
+// Define valid API routes
+const validApiRoutes = [
+    '/api/chat',
+    '/api/transcribe',
+    '/api/vision',
+    '/api/tts',
+    '/api/health',
+    '/api/dashboard'
+];
+
+// Skip function to avoid logging requests that don't match our API routes
+const skipNonApiRoutes = (req, res) => {
+    // Get the path from the request
+    const path = req.originalUrl || req.url;
+    
+    // Skip if it's a TTS route
+    if (path && path.includes('/tts')) {
         return true; // Skip logging
     }
     
-    // Option 2: Skip based on response content type
+    // Skip if content type is binary
     const contentType = res.getHeader ? res.getHeader('content-type') : res._headers?.['content-type'];
     if (contentType && contentType.includes('octet-stream')) {
         return true;
+    }
+    
+    // Skip if the route doesn't match any of our valid API routes
+    if (!validApiRoutes.some(route => path.startsWith(route))) {
+        return true; // Skip logging
     }
     
     return false;
@@ -108,5 +126,5 @@ const skipBinaryResponses = (req, res) => {
 module.exports = {
     stream: rotatingLogStream,
     format: logFormat,
-    skip: skipBinaryResponses
+    skip: skipNonApiRoutes
 };
