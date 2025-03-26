@@ -74,6 +74,36 @@ morgan.token('file-info', (req) => {
 
 morgan.token('request-id', (req) => req.id);
 
+// Add a custom token for request headers
+morgan.token('req-headers', req => {
+    try {
+        // Create a copy of headers to avoid exposing sensitive data
+        const headers = {...req.headers};
+        
+        // Optionally redact sensitive headers
+        if (headers.authorization) {
+            headers.authorization = '[REDACTED]';
+        }
+        if (headers.cookie) {
+            headers.cookie = '[REDACTED]';
+        }
+        
+        return JSON.stringify(headers);
+    } catch (err) {
+        return '[CANNOT STRINGIFY HEADERS]';
+    }
+});
+
+// Also create a token for response headers
+morgan.token('res-headers', (req, res) => {
+    try {
+        const headers = res.getHeaders ? res.getHeaders() : res._headers || {};
+        return JSON.stringify(headers);
+    } catch (err) {
+        return '[CANNOT STRINGIFY HEADERS]';
+    }
+});
+
 // Log format
 const logFormat = [
     ':date[iso]',
@@ -84,7 +114,9 @@ const logFormat = [
     ':response-time ms',
     'IP: :remote-addr',
     'User Agent: :user-agent',
+    'Request Headers: :req-headers',
     'Request Body: :req-body',
+    'Response Headers: :res-headers',
     'Response Body: :res-body',
     'File: :file-info'
 ].join(' | ');
