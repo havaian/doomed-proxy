@@ -26,6 +26,26 @@ const rotatingLogStream = rfs.createStream('access.log', {
     maxSize: '5G'
 });
 
+// Add a custom token for request headers
+morgan.token('req-headers', req => {
+    try {
+        // Create a copy of headers to avoid exposing sensitive data
+        const headers = {...req.headers};
+        
+        // Optionally redact sensitive headers
+        if (headers.authorization) {
+            headers.authorization = '[REDACTED]';
+        }
+        if (headers.cookie) {
+            headers.cookie = '[REDACTED]';
+        }
+        
+        return JSON.stringify(headers);
+    } catch (err) {
+        return '[CANNOT STRINGIFY HEADERS]';
+    }
+});
+
 // Custom tokens
 morgan.token('req-body', req => {
     // Don't log file uploads or large binary data
@@ -37,6 +57,18 @@ morgan.token('req-body', req => {
         return JSON.stringify(req.body);
     } catch (err) {
         return '[CANNOT STRINGIFY BODY]';
+    }
+});
+
+
+
+// Also create a token for response headers
+morgan.token('res-headers', (req, res) => {
+    try {
+        const headers = res.getHeaders ? res.getHeaders() : res._headers || {};
+        return JSON.stringify(headers);
+    } catch (err) {
+        return '[CANNOT STRINGIFY HEADERS]';
     }
 });
 
@@ -74,33 +106,49 @@ morgan.token('file-info', (req) => {
 
 morgan.token('request-id', (req) => req.id);
 
-// Add a custom token for request headers
-morgan.token('req-headers', req => {
+// Add a custom token for API key identification
+morgan.token('api-key-info', (req) => {
     try {
-        // Create a copy of headers to avoid exposing sensitive data
-        const headers = {...req.headers};
+        // Get authorization header
+        const authHeader = req.headers.authorization;
         
-        // Optionally redact sensitive headers
-        if (headers.authorization) {
-            headers.authorization = '[REDACTED]';
-        }
-        if (headers.cookie) {
-            headers.cookie = '[REDACTED]';
+        if (authHeader && authHeader.startsWith('Bearer ')) {
+            // Extract the token
+            const token = authHeader.substring(7);
+            
+            // Create a safe identifier (first 4 chars + last 4 chars)
+            if (token.length > 8) {
+                const prefix = token.substring(0, 4);
+                const suffix = token.substring(token.length - 4);
+                return `${prefix}...${suffix}`;
+            } else {
+                return 'INVALID_KEY_FORMAT';
+            }
         }
         
-        return JSON.stringify(headers);
+        // Check for OpenAI API key in environment
+        if (process.env.OPENAI_API_KEY) {
+            const key = process.env.OPENAI_API_KEY;
+            if (key.length > 8) {
+                const prefix = key.substring(0, 4);
+                const suffix = key.substring(key.length - 4);
+                return `ENV:${prefix}...${suffix}`;
+            }
+        }
+        
+        // Check for ElevenLabs API key in environment
+        if (process.env.ELEVENLABS_API_KEY) {
+            const key = process.env.ELEVENLABS_API_KEY;
+            if (key.length > 8) {
+                const prefix = key.substring(0, 4);
+                const suffix = key.substring(key.length - 4);
+                return `ELEVENLABS:${prefix}...${suffix}`;
+            }
+        }
+        
+        return 'NO_API_KEY_FOUND';
     } catch (err) {
-        return '[CANNOT STRINGIFY HEADERS]';
-    }
-});
-
-// Also create a token for response headers
-morgan.token('res-headers', (req, res) => {
-    try {
-        const headers = res.getHeaders ? res.getHeaders() : res._headers || {};
-        return JSON.stringify(headers);
-    } catch (err) {
-        return '[CANNOT STRINGIFY HEADERS]';
+        return 'ERROR_PROCESSING_KEY';
     }
 });
 
@@ -113,6 +161,7 @@ const logFormat = [
     ':status',
     ':response-time ms',
     'IP: :remote-addr',
+    'API Key: :api-key-info',
     'User Agent: :user-agent',
     'Request Headers: :req-headers',
     'Request Body: :req-body',
