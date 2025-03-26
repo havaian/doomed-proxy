@@ -10,7 +10,7 @@ router.post('/chat', async (req, res) => {
         }));
 
         const body = {
-            model: /* req.body.Model?.toLowerCase() || req.body.model */ "gpt-4-turbo",
+            model: req.body.Model?.toLowerCase() || req.body.model /* "gpt-4-turbo" */,
             messages: messages,
             temperature: req.body.Temperature || req.body.temperature
         };
