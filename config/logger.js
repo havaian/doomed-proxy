@@ -26,12 +26,17 @@ const rotatingLogStream = rfs.createStream('access.log', {
     maxSize: '5G'
 });
 
+
+morgan.token('instance-info', () => {
+    return `${process.env.name || 'unknown'}:${process.env.PORT || 'unknown'}`;
+});
+
 // Add a custom token for request headers
 morgan.token('req-headers', req => {
     try {
         // Create a copy of headers to avoid exposing sensitive data
-        const headers = {...req.headers};
-        
+        const headers = { ...req.headers };
+
         // Optionally redact sensitive headers
         if (headers.authorization) {
             headers.authorization = '[REDACTED]';
@@ -39,7 +44,7 @@ morgan.token('req-headers', req => {
         if (headers.cookie) {
             headers.cookie = '[REDACTED]';
         }
-        
+
         return JSON.stringify(headers);
     } catch (err) {
         return '[CANNOT STRINGIFY HEADERS]';
@@ -52,7 +57,7 @@ morgan.token('req-body', req => {
     if (req.is('multipart/form-data') || req.is('application/octet-stream')) {
         return '[FILE UPLOAD - NOT LOGGED]';
     }
-    
+
     try {
         return JSON.stringify(req.body);
     } catch (err) {
@@ -75,21 +80,21 @@ morgan.token('res-headers', (req, res) => {
 morgan.token('res-body', (req, res) => {
     // Skip binary responses and TTS responses
     const contentType = res.getHeader ? res.getHeader('content-type') : res._headers?.['content-type'];
-    
+
     if (contentType && (
-        contentType.includes('octet-stream') || 
+        contentType.includes('octet-stream') ||
         contentType.includes('audio') ||
         contentType.includes('video') ||
         contentType.includes('image')
     )) {
         return '[BINARY DATA - NOT LOGGED]';
     }
-    
+
     // Check if it's a TTS endpoint
     if (req.path && req.path.includes('/tts')) {
         return '[TTS AUDIO DATA - NOT LOGGED]';
     }
-    
+
     return res._responseBody || '-';
 });
 
@@ -111,11 +116,11 @@ morgan.token('api-key-info', (req) => {
     try {
         // Get authorization header
         const authHeader = req.headers.authorization;
-        
+
         if (authHeader && authHeader.startsWith('Bearer ')) {
             // Extract the token
             const token = authHeader.substring(7);
-            
+
             // Create a safe identifier (first 4 chars + last 4 chars)
             if (token.length > 8) {
                 const prefix = token.substring(0, 4);
@@ -125,7 +130,7 @@ morgan.token('api-key-info', (req) => {
                 return 'INVALID_KEY_FORMAT';
             }
         }
-        
+
         // Check for OpenAI API key in environment
         if (process.env.OPENAI_API_KEY) {
             const key = process.env.OPENAI_API_KEY;
@@ -135,7 +140,7 @@ morgan.token('api-key-info', (req) => {
                 return `ENV:${prefix}...${suffix}`;
             }
         }
-        
+
         // Check for ElevenLabs API key in environment
         if (process.env.ELEVENLABS_API_KEY) {
             const key = process.env.ELEVENLABS_API_KEY;
@@ -145,7 +150,7 @@ morgan.token('api-key-info', (req) => {
                 return `ELEVENLABS:${prefix}...${suffix}`;
             }
         }
-        
+
         return 'NO_API_KEY_FOUND';
     } catch (err) {
         return 'ERROR_PROCESSING_KEY';
@@ -155,6 +160,7 @@ morgan.token('api-key-info', (req) => {
 // Log format
 const logFormat = [
     ':date[iso]',
+    'instance::instance-info',
     'reqId::request-id',
     ':method :url',
     'HTTP/:http-version',
@@ -184,23 +190,23 @@ const validApiRoutes = [
 const skipNonApiRoutes = (req, res) => {
     // Get the path from the request
     const path = req.originalUrl || req.url;
-    
+
     // Skip if it's a TTS route
     if (path && path.includes('/tts')) {
         return true; // Skip logging
     }
-    
+
     // Skip if content type is binary
     const contentType = res.getHeader ? res.getHeader('content-type') : res._headers?.['content-type'];
     if (contentType && contentType.includes('octet-stream')) {
         return true;
     }
-    
+
     // Skip if the route doesn't match any of our valid API routes
     if (!validApiRoutes.some(route => path.startsWith(route))) {
         return true; // Skip logging
     }
-    
+
     return false;
 };
 

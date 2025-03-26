@@ -3,7 +3,10 @@ const compression = require('compression');
 const cron = require('node-cron');
 const { v4: uuidv4 } = require('uuid');
 const morgan = require('morgan');
-require('dotenv').config();;
+
+const instanceKey = process.env.name ? process.env.name.split('-').pop() : 'key1';
+console.log(`Loading environment from .env.${instanceKey}`);
+require('dotenv').config({ path: `.env.${instanceKey}` });
 
 // Import middleware
 const captureResponseBody = require('./middleware/capture');
@@ -18,6 +21,13 @@ const monitorDiskSpace = require('./utils/diskMonitor');
 const app = express();
 
 app.set('trust proxy', 1);
+
+console.log(`Instance ${process.env.name || 'unknown'} starting with API key: ${process.env.OPENAI_API_KEY ? process.env.OPENAI_API_KEY.substring(0, 4) + '...' + process.env.OPENAI_API_KEY.substring(process.env.OPENAI_API_KEY.length - 4) : 'undefined'}`);
+
+app.use((req, res, next) => {
+    res.setHeader('X-Instance-ID', process.env.name || 'unknown');
+    next();
+});
 
 // Request ID middleware
 app.use((req, res, next) => {
@@ -46,7 +56,7 @@ app.use(express.json({
 
 // Logging setup
 app.use(captureResponseBody);
-app.use(morgan(logger.format, { 
+app.use(morgan(logger.format, {
     stream: logger.stream,
     skip: logger.skip
 }));
