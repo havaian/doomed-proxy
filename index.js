@@ -7,6 +7,7 @@ const morgan = require('morgan');
 const instanceKey = process.env.name ? process.env.name.split('-').pop() : 'key1';
 console.log(`Loading environment from .env.${instanceKey}`);
 require('dotenv').config({ path: `.env.${instanceKey}` });
+// require('dotenv').config();
 
 // Import middleware
 const captureResponseBody = require('./middleware/capture');
@@ -40,8 +41,8 @@ app.use((req, res, next) => {
 // Apply security middleware
 app.use(security);
 
-// // Apply user agent filter middleware
-// app.use(filterUserAgent);
+// Apply user agent filter middleware
+app.use(filterUserAgent);
 
 // Optimize compression for NVMe speed
 app.use(compression({
@@ -72,13 +73,13 @@ if (process.env.NODE_ENV !== 'production') {
     }));
 }
 
-// const telegramNotifier = require('./middleware/telegramNotifier');
+const telegramNotifier = require('./middleware/telegramNotifier');
 
-// // Add the telegramNotifier to your app so that the middleware can access it
-// app.set('telegramNotifier', telegramNotifier);
+// Add the telegramNotifier to your app so that the middleware can access it
+app.set('telegramNotifier', telegramNotifier);
 
-// // Apply the middleware (before route handlers, after parsing)
-// app.use(telegramNotifier.middleware());
+// Apply the middleware (before route handlers, after parsing)
+app.use(telegramNotifier.middleware());
 
 // Import routes
 const chatRouter = require('./routes/chat');
@@ -107,6 +108,3 @@ app.listen(PORT, '0.0.0.0', () => {
     process.env.UV_THREADPOOL_SIZE = '4';
     console.log(`✅ Server running on port ${PORT}`);
 });
-
-const telegramNotifier = require('./middleware/telegramNotifier');
-telegramNotifier.sendMessage("🧪 Test message - Notification system is working!");
