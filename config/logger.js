@@ -18,9 +18,9 @@ if (!fs.existsSync(accessLogPath)) {
 
 // Log rotation settings
 const rotatingLogStream = rfs.createStream('access.log', {
-    interval: '30d',    // Rotate daily
+    interval: '7d',    // Rotate daily
     path: logsDir,
-    size: '100M',      // Also rotate if size exceeds 100MB
+    size: '25M',      // Also rotate if size exceeds 100MB
     compress: 'gzip',  // Use built-in gzip compression
     maxFiles: 100,
     maxSize: '5G'
