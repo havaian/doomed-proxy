@@ -73,13 +73,10 @@ if (process.env.NODE_ENV !== 'production') {
     }));
 }
 
-// const telegramNotifier = require('./middleware/telegramNotifier');
+const telegramNotifier = require('./middleware/telegramNotifier');
 
-// // Add the telegramNotifier to your app so that the middleware can access it
-// app.set('telegramNotifier', telegramNotifier);
-
-// // Apply the middleware (before route handlers, after parsing)
-// app.use(telegramNotifier.middleware());
+// Add the telegramNotifier to your app so that the middleware can access it
+app.use(telegramNotifier.middleware());
 
 // Import routes
 const chatRouter = require('./routes/chat');

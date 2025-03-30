@@ -7,12 +7,15 @@ class TelegramNotifier {
         this.enabled = Boolean(this.botToken && this.chatId);
         
         // Request volume tracking with thresholds
-        this.requestCounts = {};
+        this.errorCounts = {}; // Changed from requestCounts to errorCounts to be more clear
         this.thresholds = config.thresholds || [ 1, 5, 10, 25, 50, 75, 100, 125, 150, 175, 200, 250, 300, 350, 400, 450, 500 ];
         this.notifiedThresholds = {};
         
         // Rate limit error tracking (for hourly summary only)
         this.rateLimitErrors = {};
+        
+        // Track all requests for hourly summary
+        this.allRequestCounts = {};
         
         // Initialize hourly reset
         this.setupHourlyReset();
@@ -31,18 +34,29 @@ class TelegramNotifier {
             const hour = `${now.getFullYear()}-${String(now.getMonth() + 1).padStart(2, '0')}-${String(now.getDate()).padStart(2, '0')} ${String(now.getHours()).padStart(2, '0')}:00`;
             
             // Log the hourly stats before resetting
-            if (Object.keys(this.requestCounts).length > 0) {
-                const totalRequests = Object.values(this.requestCounts).reduce((sum, count) => sum + count, 0);
+            if (Object.keys(this.allRequestCounts).length > 0) {
+                const totalRequests = Object.values(this.allRequestCounts).reduce((sum, count) => sum + count, 0);
+                const totalErrors = Object.values(this.errorCounts).reduce((sum, count) => sum + count, 0);
                 
                 // Calculate total rate limit errors
                 const totalRateLimits = Object.values(this.rateLimitErrors).reduce((sum, count) => sum + count, 0);
                 
                 // Sort routes by request count in descending order
-                const sortedRoutes = Object.entries(this.requestCounts)
+                const sortedRoutes = Object.entries(this.allRequestCounts)
                     .sort((a, b) => b[1] - a[1])
                     .slice(0, 5) // Only show top 5 routes
                     .map(([path, count]) => `${path}: ${count}`)
                     .join('\n');
+                
+                // Add error info if any occurred
+                let errorInfo = '';
+                if (totalErrors > 0) {
+                    errorInfo = '\n\nError Counts:\n' + 
+                        Object.entries(this.errorCounts)
+                            .sort((a, b) => b[1] - a[1])
+                            .map(([path, count]) => `${path}: ${count}`)
+                            .join('\n');
+                }
                 
                 // Add rate limit info if any occurred
                 let rateLimitInfo = '';
@@ -54,13 +68,14 @@ class TelegramNotifier {
                             .join('\n');
                 }
                 
-                const message = `📊 Hourly Summary\n\nInstance: ${process.env.name || 'localhost'}\nHour: ${hour.split(' ')[1]}\nTotal: ${totalRequests}\nRate Limits: ${totalRateLimits}\n\nTop Routes:\n${sortedRoutes}${rateLimitInfo}`;
+                const message = `📊 Hourly Summary\n\nInstance: ${process.env.name || 'localhost'}\nHour: ${hour.split(' ')[1]}\nTotal: ${totalRequests}\nErrors: ${totalErrors}\nRate Limits: ${totalRateLimits}\n\nTop Routes:\n${sortedRoutes}${errorInfo}${rateLimitInfo}`;
                 
                 this.sendMessage(message);
             }
             
             // Reset counters
-            this.requestCounts = {};
+            this.errorCounts = {};
+            this.allRequestCounts = {};
             this.notifiedThresholds = {};
             this.rateLimitErrors = {};
         };
@@ -97,17 +112,17 @@ class TelegramNotifier {
         }
     }
     
-    trackRequest(req, res) {
+    trackError(req, statusCode) {
         const path = req.originalUrl || req.url;
         const model = req.body?.model || 'unknown';
         
         // Initialize or increment the counter for this path
-        this.requestCounts[path] = (this.requestCounts[path] || 0) + 1;
+        this.errorCounts[path] = (this.errorCounts[path] || 0) + 1;
         
         // Check if we've crossed any thresholds
         for (const threshold of this.thresholds) {
             // If we've just crossed a threshold and haven't notified about it yet
-            if (this.requestCounts[path] === threshold && !this.notifiedThresholds[`${path}-${threshold}`]) {
+            if (this.errorCounts[path] === threshold && !this.notifiedThresholds[`${path}-${threshold}`]) {
                 this.notifiedThresholds[`${path}-${threshold}`] = true;
                 
                 // Calculate next reset time
@@ -121,40 +136,70 @@ class TelegramNotifier {
                 // Format reset time as HH:MM:SS
                 const resetTime = nextHour.toTimeString().split(' ')[0];
                 
-                this.sendMessage(`⚠️ 429 API Response Alert\n\nInstance: ${process.env.name || 'localhost'}\nRoute: ${path}\nModel: ${model}\nCount: ${threshold}\nReset: ${resetTime}`);
+                this.sendMessage(`⚠️ Error API Response Alert\n\nInstance: ${process.env.name || 'localhost'}\nRoute: ${path}\nModel: ${model}\nStatus: ${statusCode}\nCount: ${threshold}\nReset: ${resetTime}`);
             }
         }
+    }
+    
+    trackRequest(req) {
+        const path = req.originalUrl || req.url;
+        
+        // Track all requests for statistics
+        this.allRequestCounts[path] = (this.allRequestCounts[path] || 0) + 1;
     }
     
     trackRateLimit(req) {
         const path = req.originalUrl || req.url;
         
-        // Just count rate limits for hourly summary - no immediate alerts
+        // Count rate limits for hourly summary
         this.rateLimitErrors[path] = (this.rateLimitErrors[path] || 0) + 1;
     }
     
     middleware() {
         return (req, res, next) => {
-            // Track all requests
-            this.trackRequest(req, res);
+            // Track all requests for statistics
+            this.trackRequest(req);
             
-            // Capture the original response methods to track 429s for statistics
+            // Capture the original response methods to track non-2xx status codes
             const originalSend = res.send;
             const originalJson = res.json;
+            const originalEnd = res.end;
             
-            // Monitor for 429 status codes (for hourly stats only)
+            // Monitor for non-2xx status codes
             res.send = function(body) {
-                if (res.statusCode === 429) {
-                    notifier.trackRateLimit(req);
+                if (res.statusCode < 200 || res.statusCode >= 300) {
+                    notifier.trackError(req, res.statusCode);
+                    
+                    // Also track rate limits separately
+                    if (res.statusCode === 429) {
+                        notifier.trackRateLimit(req);
+                    }
                 }
                 return originalSend.call(this, body);
             };
             
             res.json = function(body) {
-                if (res.statusCode === 429) {
-                    notifier.trackRateLimit(req);
+                if (res.statusCode < 200 || res.statusCode >= 300) {
+                    notifier.trackError(req, res.statusCode);
+                    
+                    // Also track rate limits separately
+                    if (res.statusCode === 429) {
+                        notifier.trackRateLimit(req);
+                    }
                 }
                 return originalJson.call(this, body);
+            };
+            
+            res.end = function(chunk) {
+                if (res.statusCode < 200 || res.statusCode >= 300) {
+                    notifier.trackError(req, res.statusCode);
+                    
+                    // Also track rate limits separately
+                    if (res.statusCode === 429) {
+                        notifier.trackRateLimit(req);
+                    }
+                }
+                return originalEnd.call(this, chunk);
             };
             
             next();
