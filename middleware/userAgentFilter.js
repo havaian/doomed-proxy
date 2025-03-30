@@ -1,5 +1,9 @@
 // middleware/userAgentFilter.js
 const filterUserAgent = (req, res, next) => {
+    if (req.path.includes('/api/test-rate-limit')) {
+        return next();
+    }
+
     const userAgent = req.headers['user-agent'];
     
     // Allow if user-agent is empty or not present
