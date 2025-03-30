@@ -144,6 +144,11 @@ class TelegramNotifier {
     trackRequest(req) {
         const path = req.originalUrl || req.url;
         
+        // Don't track TTS routes
+        if (this.shouldIgnoreRoute(path)) {
+            return;
+        }
+        
         // Track all requests for statistics
         this.allRequestCounts[path] = (this.allRequestCounts[path] || 0) + 1;
     }
@@ -155,8 +160,21 @@ class TelegramNotifier {
         this.rateLimitErrors[path] = (this.rateLimitErrors[path] || 0) + 1;
     }
     
+    shouldIgnoreRoute(path) {
+        // Ignore TTS route as requested
+        return path && path.includes('/api/tts');
+    }
+    
     middleware() {
         return (req, res, next) => {
+            const path = req.originalUrl || req.url;
+            
+            // Skip TTS routes completely
+            if (this.shouldIgnoreRoute(path)) {
+                next();
+                return;
+            }
+            
             // Track all requests for statistics
             this.trackRequest(req);
             
@@ -167,7 +185,7 @@ class TelegramNotifier {
             
             // Monitor for non-2xx status codes
             res.send = function(body) {
-                if (res.statusCode < 200 || res.statusCode >= 300) {
+                if ((res.statusCode < 200 || res.statusCode >= 300) && !notifier.shouldIgnoreRoute(path)) {
                     notifier.trackError(req, res.statusCode);
                     
                     // Also track rate limits separately
@@ -179,7 +197,7 @@ class TelegramNotifier {
             };
             
             res.json = function(body) {
-                if (res.statusCode < 200 || res.statusCode >= 300) {
+                if ((res.statusCode < 200 || res.statusCode >= 300) && !notifier.shouldIgnoreRoute(path)) {
                     notifier.trackError(req, res.statusCode);
                     
                     // Also track rate limits separately
@@ -191,7 +209,7 @@ class TelegramNotifier {
             };
             
             res.end = function(chunk) {
-                if (res.statusCode < 200 || res.statusCode >= 300) {
+                if ((res.statusCode < 200 || res.statusCode >= 300) && !notifier.shouldIgnoreRoute(path)) {
                     notifier.trackError(req, res.statusCode);
                     
                     // Also track rate limits separately
