@@ -16,15 +16,22 @@ router.post('/vision', (req, res) => {
                 });
                 return res.status(400).json({ 
                     error: `❌ File upload error: ${err.message}`,
-                    details: `❌ Expected field name: 'file' or 'File'`
+                    message: `❌ Expected field name: 'file' or 'File'`,
+                    details: '070'
                 });
             } else if (err) {
                 console.error('❌ Unknown upload error:', err);
-                return res.status(500).json({ error: '❌ File upload failed' });
+                return res.status(500).json({ 
+                    error: '❌ File upload failed',
+                    details: '071'
+                });
             }
 
             if (!req.file) {
-                return res.status(400).json({ error: '❌ No image provided' });
+                return res.status(400).json({ 
+                    error: '❌ No image provided',
+                    details: '072'
+                });
             }
 
             // Get text prompt from request body
@@ -68,7 +75,10 @@ router.post('/vision', (req, res) => {
                 res.json(response.data);
             } else {
                 console.error('❌ Empty response from OpenAI');
-                res.status(400).json({ error: '❌ No completion generated' });
+                res.status(400).json({ 
+                    error: '❌ No completion generated',
+                    details: '073'
+                });
             }
         } catch (error) {
             console.error('❌ Vision completion error:', {
@@ -78,7 +88,8 @@ router.post('/vision', (req, res) => {
             });
             
             res.status(error.response?.status || 500).json({
-                error: error.response?.data?.error?.message || error.message
+                error: error.response?.data?.error?.message || error.message,
+                details: '074'
             });
         }
     });

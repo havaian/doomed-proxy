@@ -20,7 +20,10 @@ router.post('/tts', async (req, res) => {
         } = req.body;
 
         if (!text) {
-            return res.status(400).json({ error: '❌ No text provided for conversion' });
+            return res.status(400).json({ 
+                error: '❌ No text provided for conversion',
+                details: '060'
+            });
         }
 
         // Match Unity implementation's parameters
@@ -49,7 +52,10 @@ router.post('/tts', async (req, res) => {
 
         // Check if we got valid audio data
         if (!response.data || !response.data.length) {
-            return res.status(400).json({ error: '❌ No audio data received' });
+            return res.status(400).json({ 
+                error: '❌ No audio data received',
+                details: '061'
+            });
         }
 
         // Set headers for binary audio data
@@ -84,7 +90,8 @@ router.post('/tts', async (req, res) => {
     
         res.status(error.response?.status || 500).json({
             error: errorMessage,
-            details: error.message
+            message: error.message,
+            details: '062'
         });
     }
 });

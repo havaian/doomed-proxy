@@ -4,15 +4,16 @@ const cron = require('node-cron');
 const { v4: uuidv4 } = require('uuid');
 const morgan = require('morgan');
 
-const instanceKey = process.env.name ? process.env.name.split('-').pop() : 'key1';
-console.log(`Loading environment from .env.${instanceKey}`);
-require('dotenv').config({ path: `.env.${instanceKey}` });
-// require('dotenv').config();
+// const instanceKey = process.env.name ? process.env.name.split('-').pop() : 'key1';
+// console.log(`Loading environment from .env.${instanceKey}`);
+// require('dotenv').config({ path: `.env.${instanceKey}` });
+require('dotenv').config();
 
 // Import middleware
 const captureResponseBody = require('./middleware/capture');
 const security = require('./middleware/security');
 const filterUserAgent = require('./middleware/userAgentFilter');
+const validateSteamTicket = require('./middleware/steamAuth');
 
 // Import config
 const logger = require('./config/logger');
@@ -87,14 +88,16 @@ const ttsRouter = require('./routes/tts');
 
 // Routes
 app.get('/api/test-rate-limit', (req, res) => {
-    res.status(429).json({ error: 'Too many requests' });
+    res.status(429).json({ 
+        error: 'Too many requests', details: '429' 
+    });
 });
 
-app.use('/api', chatRouter);
-app.use('/api', transcribeRouter);
-app.use('/api', visionRouter);
 app.use('/api', healthRouter);
-app.use('/api', ttsRouter);
+app.use('/api', validateSteamTicket, chatRouter);
+app.use('/api', validateSteamTicket, transcribeRouter);
+app.use('/api', validateSteamTicket, visionRouter);
+app.use('/api', validateSteamTicket, ttsRouter);
 
 // Schedule disk space check
 cron.schedule('0 * * * *', monitorDiskSpace);

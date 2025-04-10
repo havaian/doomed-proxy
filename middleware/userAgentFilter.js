@@ -25,7 +25,7 @@ const filterUserAgent = (req, res, next) => {
     
     return res.status(403).json({
         error: 'Access denied',
-        message: 'This API endpoint requires an authorized user-agent'
+        message: '030'
     });
 };
 

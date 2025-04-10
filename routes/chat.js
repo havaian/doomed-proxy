@@ -77,7 +77,8 @@ router.post('/chat', async (req, res) => {
         });
         
         res.status(error.response?.status || 500).json({
-            error: error.response?.data?.error?.message || error.message
+            error: error.response?.data?.error?.message || error.message,
+            details: '040'
         });
     }
 });

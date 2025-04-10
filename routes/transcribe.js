@@ -16,15 +16,22 @@ router.post('/transcribe', (req, res) => {
                 });
                 return res.status(400).json({ 
                     error: `❌ File upload error: ${err.message}`,
-                    details: `❌ Expected field name: 'file' or 'File'`
+                    message: `❌ Expected field name: 'file' or 'File'`,
+                    details: '050'
                 });
             } else if (err) {
                 console.error('❌ Unknown upload error:', err);
-                return res.status(500).json({ error: '❌ File upload failed' });
+                return res.status(500).json({ 
+                    error: '❌ File upload failed',
+                    details: '051' 
+                });
             }
 
             if (!req.file) {
-                return res.status(400).json({ error: '❌ No audio file provided' });
+                return res.status(400).json({ 
+                    error: '❌ No audio file provided',
+                    details: '052'
+                });
             }
 
             const formData = new FormData();
@@ -57,7 +64,8 @@ router.post('/transcribe', (req, res) => {
                 data: error.response?.data
             });
             res.status(error.response?.status || 500).json({
-                error: error.response?.data?.error?.message || error.message
+                error: error.response?.data?.error?.message || error.message,
+                details: '053'
             });
         }
     });
