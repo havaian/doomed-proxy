@@ -65,8 +65,6 @@ morgan.token('req-body', req => {
     }
 });
 
-
-
 // Also create a token for response headers
 morgan.token('res-headers', (req, res) => {
     try {
@@ -186,7 +184,7 @@ const validApiRoutes = [
     '/api/dashboard'
 ];
 
-// Skip function to avoid logging requests that don't match our API routes
+// Modified skip function to ensure auth failures are logged
 const skipNonApiRoutes = (req, res) => {
     // Get the path from the request
     const path = req.originalUrl || req.url;
@@ -200,6 +198,11 @@ const skipNonApiRoutes = (req, res) => {
     const contentType = res.getHeader ? res.getHeader('content-type') : res._headers?.['content-type'];
     if (contentType && contentType.includes('octet-stream')) {
         return true;
+    }
+
+    // Never skip error responses (4xx and 5xx)
+    if (res.statusCode >= 400) {
+        return false; // Don't skip logging errors
     }
 
     // Skip if the route doesn't match any of our valid API routes

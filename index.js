@@ -60,7 +60,7 @@ app.use(express.json({
     strict: false
 }));
 
-// Logging setup
+// Logging setup - important to have this BEFORE auth middleware
 app.use(captureResponseBody);
 app.use(morgan(logger.format, {
     stream: logger.stream,
@@ -93,11 +93,37 @@ app.get('/api/test-rate-limit', (req, res) => {
     });
 });
 
+// Health endpoints should be accessible without authentication
 app.use('/api', healthRouter);
-app.use('/api', validateSteamTicket, chatRouter);
-app.use('/api', validateSteamTicket, transcribeRouter);
-app.use('/api', validateSteamTicket, visionRouter);
-app.use('/api', validateSteamTicket, ttsRouter);
+
+// Create a wrapper for the Steam authentication middleware to ensure proper logging
+const steamAuthMiddleware = (req, res, next) => {
+    // Save original response methods to ensure they're called
+    const originalEnd = res.end;
+    const originalJson = res.json;
+    
+    // Override response methods to ensure they trigger logging
+    res.end = function(...args) {
+        return originalEnd.apply(this, args);
+    };
+    
+    res.json = function(body) {
+        // Ensure response body is captured for logging
+        if (typeof body === 'object') {
+            res._responseBody = JSON.stringify(body);
+        }
+        return originalJson.call(this, body);
+    };
+    
+    // Proceed with authentication
+    validateSteamTicket(req, res, next);
+};
+
+// Apply steamAuthMiddleware to all protected routes
+app.use('/api', steamAuthMiddleware, chatRouter);
+app.use('/api', steamAuthMiddleware, transcribeRouter);
+app.use('/api', steamAuthMiddleware, visionRouter);
+app.use('/api', steamAuthMiddleware, ttsRouter);
 
 // Schedule disk space check
 cron.schedule('0 * * * *', monitorDiskSpace);
