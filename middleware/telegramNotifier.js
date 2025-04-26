@@ -8,7 +8,7 @@ class TelegramNotifier {
         
         // Request volume tracking with thresholds
         this.errorCounts = {}; // Changed from requestCounts to errorCounts to be more clear
-        this.thresholds = config.thresholds || [ 1, 5, 10, 25, 50, 75, 100, 125, 150, 175, 200, 250, 300, 350, 400, 450, 500 ];
+        this.thresholds = config.thresholds || [ 1, 2, 3, 4, 5, 6, 7, 8, 9, 10, 25, 50, 75, 100, 125, 150, 175, 200, 250, 300, 350, 400, 450, 500 ];
         this.notifiedThresholds = {};
         
         // Rate limit error tracking (for hourly summary only)
