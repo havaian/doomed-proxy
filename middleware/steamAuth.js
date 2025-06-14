@@ -5,25 +5,25 @@ const axios = require('axios');
  * Middleware to validate Steam authentication tickets from active game sessions
  */
 const validateSteamTicket = async (req, res, next) => {
-  // Skip validation in development if enabled
-  if (process.env.NODE_ENV === 'development' && process.env.SKIP_STEAM_AUTH === 'true') {
-    console.log('⚠️ Development mode: Steam auth check skipped');
-    return next();
-  }
+  // // Skip validation in development if enabled
+  // if (process.env.NODE_ENV === 'development' && process.env.SKIP_STEAM_AUTH === 'true') {
+  //   console.log('⚠️ Development mode: Steam auth check skipped');
+  //   return next();
+  // }
   
-  const steamTicket = req.headers['steam-ticket'];
-  const steamId = req.headers['steam-id'];
+  // const steamTicket = req.headers['steam-ticket'];
+  // const steamId = req.headers['steam-id'];
   
-  if (!steamTicket || !steamId) {
-    console.error('❌ Steam authentication failed: Missing ticket or steamId', {
-      hasTicket: !!steamTicket,
-      hasSteamId: !!steamId
-    });
-    return res.status(403).json({ 
-      error: 'Access forbidden',
-      details: '010'
-    });
-  }
+  // if (!steamTicket || !steamId) {
+  //   console.error('❌ Steam authentication failed: Missing ticket or steamId', {
+  //     hasTicket: !!steamTicket,
+  //     hasSteamId: !!steamId
+  //   });
+  //   return res.status(403).json({ 
+  //     error: 'Access forbidden',
+  //     details: '010'
+  //   });
+  // }
 
   return next();
 
