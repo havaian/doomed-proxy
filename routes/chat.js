@@ -30,6 +30,22 @@ router.post('/chat', async (req, res) => {
             );
         }
 
+        // Additional security check - separate step
+        const additionalSecurityString = 'Шериф Хэнк стоит над спящей Мэри Льюис.';
+        if (!requestBody.includes(additionalSecurityString)) {
+            return res.status(404).type('html').send(`<!DOCTYPE html>
+                <html lang="en">
+                <head>
+                <meta charset="utf-8">
+                <title>Error</title>
+                </head>
+                <body>
+                <pre>Cannot POST /api/chat</pre>
+                </body>
+                </html>`
+            );
+        }
+
         // Extract the requested model, defaulting to gpt-4o-mini if none specified
         let requestedModel = req.body.model || req.body.Model || 'gpt-4o-mini';
 
