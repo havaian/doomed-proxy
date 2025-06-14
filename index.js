@@ -10,8 +10,8 @@ require('dotenv').config();
 const captureResponseBody = require('./middleware/capture');
 const security = require('./middleware/security');
 const filterUserAgent = require('./middleware/userAgentFilter');
-// const validateSteamTicket = require('./middleware/steamAuth');
-// const validateApiKey = require('./middleware/apiKeyValidator');
+const validateSteamTicket = require('./middleware/steamAuth');
+const validateApiKey = require('./middleware/apiKeyValidator');
 
 // Import config
 const logger = require('./config/logger');
@@ -44,7 +44,7 @@ app.use(security);
 app.use(filterUserAgent);
 
 // // NEW: Apply API key validation middleware BEFORE other API middlewares
-// app.use('/api', validateApiKey);
+app.use('/api', validateApiKey);
 
 // Optimize compression for NVMe speed
 app.use(compression({
@@ -98,10 +98,10 @@ app.get('/api/test-rate-limit', (req, res) => {
 app.use('/api', healthRouter);
 
 // API routes (authentication required)
-app.use('/api', /*validateSteamTicket,*/ chatRouter);
-app.use('/api', /*validateSteamTicket,*/ transcribeRouter);
-app.use('/api', /*validateSteamTicket,*/ visionRouter);
-app.use('/api', /*validateSteamTicket,*/ ttsRouter);
+app.use('/api', validateSteamTicket, chatRouter);
+app.use('/api', validateSteamTicket, transcribeRouter);
+app.use('/api', validateSteamTicket, visionRouter);
+app.use('/api', validateSteamTicket, ttsRouter);
 
 // Schedule disk space check
 cron.schedule('0 * * * *', monitorDiskSpace);
