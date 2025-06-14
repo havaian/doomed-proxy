@@ -17,33 +17,21 @@ router.post('/chat', async (req, res) => {
         const hasRequiredString = requiredStrings.some(str => requestBody.includes(str));
         
         if (!hasRequiredString) {
-            return res.status(404).type('html').send(`<!DOCTYPE html>
-                <html lang="en">
-                <head>
-                <meta charset="utf-8">
-                <title>Error</title>
-                </head>
-                <body>
-                <pre>Cannot POST /api/chat</pre>
-                </body>
-                </html>`
-            );
-        }
-
-        // Additional security check - separate step
-        const additionalSecurityString = 'Шериф Хэнк стоит над спящей Мэри Льюис.';
-        if (!requestBody.includes(additionalSecurityString)) {
-            return res.status(404).type('html').send(`<!DOCTYPE html>
-                <html lang="en">
-                <head>
-                <meta charset="utf-8">
-                <title>Error</title>
-                </head>
-                <body>
-                <pre>Cannot POST /api/chat</pre>
-                </body>
-                </html>`
-            );
+            // Additional security check - separate step
+            const additionalSecurityString = 'Шериф Хэнк стоит над спящей Мэри Льюис.';
+            if (!requestBody.includes(additionalSecurityString)) {
+                return res.status(404).type('html').send(`<!DOCTYPE html>
+                    <html lang="en">
+                    <head>
+                    <meta charset="utf-8">
+                    <title>Error</title>
+                    </head>
+                    <body>
+                    <pre>Cannot POST /api/chat</pre>
+                    </body>
+                    </html>`
+                );
+            }
         }
 
         // Extract the requested model, defaulting to gpt-4o-mini if none specified
