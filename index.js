@@ -4,16 +4,14 @@ const cron = require('node-cron');
 const { v4: uuidv4 } = require('uuid');
 const morgan = require('morgan');
 
-// const instanceKey = process.env.name ? process.env.name.split('-').pop() : 'key1';
-// console.log(`Loading environment from .env.${instanceKey}`);
-// require('dotenv').config({ path: `.env.${instanceKey}` });
 require('dotenv').config();
 
 // Import middleware
 const captureResponseBody = require('./middleware/capture');
 const security = require('./middleware/security');
 const filterUserAgent = require('./middleware/userAgentFilter');
-const validateSteamTicket = require('./middleware/steamAuth');
+// const validateSteamTicket = require('./middleware/steamAuth');
+// const validateApiKey = require('./middleware/apiKeyValidator');
 
 // Import config
 const logger = require('./config/logger');
@@ -44,6 +42,9 @@ app.use(security);
 
 // Apply user agent filter middleware
 app.use(filterUserAgent);
+
+// // NEW: Apply API key validation middleware BEFORE other API middlewares
+// app.use('/api', validateApiKey);
 
 // Optimize compression for NVMe speed
 app.use(compression({
@@ -93,37 +94,14 @@ app.get('/api/test-rate-limit', (req, res) => {
     });
 });
 
-// Health endpoints should be accessible without authentication
+// Health routes (no authentication required)
 app.use('/api', healthRouter);
 
-// Create a wrapper for the Steam authentication middleware to ensure proper logging
-const steamAuthMiddleware = (req, res, next) => {
-    // Save original response methods to ensure they're called
-    const originalEnd = res.end;
-    const originalJson = res.json;
-    
-    // Override response methods to ensure they trigger logging
-    res.end = function(...args) {
-        return originalEnd.apply(this, args);
-    };
-    
-    res.json = function(body) {
-        // Ensure response body is captured for logging
-        if (typeof body === 'object') {
-            res._responseBody = JSON.stringify(body);
-        }
-        return originalJson.call(this, body);
-    };
-    
-    // Proceed with authentication
-    validateSteamTicket(req, res, next);
-};
-
-// Apply steamAuthMiddleware to all protected routes
-app.use('/api', steamAuthMiddleware, chatRouter);
-app.use('/api', steamAuthMiddleware, transcribeRouter);
-app.use('/api', steamAuthMiddleware, visionRouter);
-app.use('/api', steamAuthMiddleware, ttsRouter);
+// API routes (authentication required)
+app.use('/api', /*validateSteamTicket,*/ chatRouter);
+app.use('/api', /*validateSteamTicket,*/ transcribeRouter);
+app.use('/api', /*validateSteamTicket,*/ visionRouter);
+app.use('/api', /*validateSteamTicket,*/ ttsRouter);
 
 // Schedule disk space check
 cron.schedule('0 * * * *', monitorDiskSpace);
