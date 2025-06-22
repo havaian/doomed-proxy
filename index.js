@@ -4,7 +4,10 @@ const cron = require('node-cron');
 const { v4: uuidv4 } = require('uuid');
 const morgan = require('morgan');
 
-require('dotenv').config();
+const instanceKey = process.env.name ? process.env.name.split('-').pop() : 'key1';
+console.log(`Loading environment from .env.${instanceKey}`);
+require('dotenv').config({ path: `.env.${instanceKey}` });
+// require('dotenv').config();
 
 // Import middleware
 const captureResponseBody = require('./middleware/capture');
